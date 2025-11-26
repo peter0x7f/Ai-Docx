@@ -2,14 +2,14 @@ import { useState } from "react";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
-import { Loader2, Sparkles, Search } from "lucide-react";
+import { Loader2, Sparkles, Search, Copy, Check } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
 import type { DocumentData } from "@/pages/Index";
 
 interface AIPanelProps {
   document: DocumentData;
-  selectedText: { text: string; range: { start: number; end: number } } | null;
+  selectedText: { text: string; html?: string } | null;
   onRefinementComplete: (refinedText: string) => void;
 }
 
@@ -17,6 +17,7 @@ const AIPanel = ({ document, selectedText, onRefinementComplete }: AIPanelProps)
   const [prompt, setPrompt] = useState("");
   const [isProcessing, setIsProcessing] = useState(false);
   const [refinedText, setRefinedText] = useState("");
+  const [copied, setCopied] = useState(false);
   const { toast } = useToast();
 
   const handleRefine = async () => {
@@ -37,8 +38,8 @@ const AIPanel = ({ document, selectedText, onRefinementComplete }: AIPanelProps)
         body: {
           selectedText: selectedText.text,
           prompt: prompt,
-          documentSummary: document.summary || document.content.slice(0, 1000),
-          fullDocument: document.content,
+          documentSummary: document.summary || document.content.replace(/<[^>]*>/g, ' ').slice(0, 1000),
+          fullDocument: document.content.replace(/<[^>]*>/g, ' '),
         },
       });
 
@@ -61,6 +62,13 @@ const AIPanel = ({ document, selectedText, onRefinementComplete }: AIPanelProps)
     }
   };
 
+  const handleCopy = () => {
+    navigator.clipboard.writeText(refinedText);
+    setCopied(true);
+    toast({ title: "Copied to clipboard" });
+    setTimeout(() => setCopied(false), 2000);
+  };
+
   return (
     <Card className="p-6 space-y-4 sticky top-6">
       <div className="flex items-center gap-2 pb-4 border-b border-border">
@@ -74,9 +82,9 @@ const AIPanel = ({ document, selectedText, onRefinementComplete }: AIPanelProps)
             <label className="text-sm font-medium text-foreground mb-2 block">
               Selected Text
             </label>
-            <div className="p-3 bg-highlight/20 border border-accent/20 rounded-lg text-sm text-foreground">
-              "{selectedText.text.slice(0, 100)}
-              {selectedText.text.length > 100 ? '...' : ''}"
+            <div className="p-3 bg-highlight/20 border border-accent/20 rounded-lg text-sm text-foreground max-h-[150px] overflow-y-auto">
+              "{selectedText.text.slice(0, 200)}
+              {selectedText.text.length > 200 ? '...' : ''}"
             </div>
           </div>
 
@@ -87,8 +95,8 @@ const AIPanel = ({ document, selectedText, onRefinementComplete }: AIPanelProps)
             <Textarea
               value={prompt}
               onChange={(e) => setPrompt(e.target.value)}
-              placeholder="E.g., 'Make this more academic and add recent research findings...'"
-              className="min-h-[120px]"
+              placeholder="Examples:&#10;• Make this more formal and academic&#10;• Simplify the language for general readers&#10;• Add recent research and expand on key points&#10;• Make this more concise while keeping the main ideas"
+              className="min-h-[140px]"
               disabled={isProcessing}
             />
           </div>
@@ -112,23 +120,34 @@ const AIPanel = ({ document, selectedText, onRefinementComplete }: AIPanelProps)
           </Button>
 
           {refinedText && (
-            <div className="space-y-2">
-              <label className="text-sm font-medium text-foreground">
-                Refined Result
+            <div className="space-y-3 pt-2 border-t border-border">
+              <label className="text-sm font-medium text-foreground flex items-center justify-between">
+                <span>Refined Result</span>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={handleCopy}
+                  className="h-8"
+                >
+                  {copied ? (
+                    <>
+                      <Check className="w-3 h-3 mr-1" />
+                      Copied
+                    </>
+                  ) : (
+                    <>
+                      <Copy className="w-3 h-3 mr-1" />
+                      Copy
+                    </>
+                  )}
+                </Button>
               </label>
-              <div className="p-4 bg-card border border-border rounded-lg text-sm text-foreground max-h-[300px] overflow-y-auto">
+              <div className="p-4 bg-card border border-border rounded-lg text-sm text-foreground max-h-[350px] overflow-y-auto leading-relaxed">
                 {refinedText}
               </div>
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={() => {
-                  navigator.clipboard.writeText(refinedText);
-                  toast({ title: "Copied to clipboard" });
-                }}
-              >
-                Copy Refined Text
-              </Button>
+              <p className="text-xs text-muted-foreground">
+                💡 Copy the refined text and paste it back into your document
+              </p>
             </div>
           )}
         </div>
@@ -137,9 +156,14 @@ const AIPanel = ({ document, selectedText, onRefinementComplete }: AIPanelProps)
           <div className="mx-auto w-16 h-16 rounded-full bg-accent/10 flex items-center justify-center">
             <Sparkles className="w-8 h-8 text-accent" />
           </div>
-          <p className="text-sm text-muted-foreground">
-            Highlight text in the document to start refining with AI research
-          </p>
+          <div className="space-y-2">
+            <p className="text-sm font-medium text-foreground">
+              Highlight text to get started
+            </p>
+            <p className="text-xs text-muted-foreground px-4">
+              Select any text in your document, then provide instructions for how you'd like AI to refine it with research
+            </p>
+          </div>
         </div>
       )}
     </Card>

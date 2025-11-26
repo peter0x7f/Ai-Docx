@@ -13,7 +13,7 @@ const Index = () => {
   const [document, setDocument] = useState<DocumentData | null>(null);
   const [selectedText, setSelectedText] = useState<{
     text: string;
-    range: { start: number; end: number };
+    html?: string;
   } | null>(null);
 
   return (
