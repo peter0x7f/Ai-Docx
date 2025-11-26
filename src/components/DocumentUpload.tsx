@@ -3,7 +3,11 @@ import { Upload, FileText, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { useToast } from "@/hooks/use-toast";
-import { supabase } from "@/integrations/supabase/client";
+import * as mammoth from "mammoth";
+import * as pdfjsLib from "pdfjs-dist";
+
+// Configure PDF.js worker
+pdfjsLib.GlobalWorkerOptions.workerSrc = `//cdnjs.cloudflare.com/ajax/libs/pdf.js/${pdfjsLib.version}/pdf.worker.min.js`;
 
 interface DocumentUploadProps {
   onDocumentLoaded: (data: { content: string; fileName: string; summary?: string }) => void;
@@ -12,6 +16,29 @@ interface DocumentUploadProps {
 const DocumentUpload = ({ onDocumentLoaded }: DocumentUploadProps) => {
   const [isLoading, setIsLoading] = useState(false);
   const { toast } = useToast();
+
+  const extractPDF = async (file: File): Promise<string> => {
+    const arrayBuffer = await file.arrayBuffer();
+    const pdf = await pdfjsLib.getDocument({ data: arrayBuffer }).promise;
+    let fullText = '';
+
+    for (let i = 1; i <= pdf.numPages; i++) {
+      const page = await pdf.getPage(i);
+      const textContent = await page.getTextContent();
+      const pageText = textContent.items
+        .map((item: any) => item.str)
+        .join(' ');
+      fullText += pageText + '\n\n';
+    }
+
+    return fullText;
+  };
+
+  const extractDOCX = async (file: File): Promise<string> => {
+    const arrayBuffer = await file.arrayBuffer();
+    const result = await mammoth.convertToHtml({ arrayBuffer });
+    return result.value;
+  };
 
   const handleFileUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
@@ -36,19 +63,27 @@ const DocumentUpload = ({ onDocumentLoaded }: DocumentUploadProps) => {
     setIsLoading(true);
 
     try {
-      const formData = new FormData();
-      formData.append('file', file);
+      let content = '';
 
-      const { data, error } = await supabase.functions.invoke('parse-document', {
-        body: formData,
-      });
+      if (file.type === 'text/plain') {
+        content = await file.text();
+        // Convert plain text to HTML paragraphs
+        content = content.split('\n\n').map(p => `<p>${p}</p>`).join('');
+      } else if (file.type === 'application/pdf') {
+        const text = await extractPDF(file);
+        content = text.split('\n\n').map(p => `<p>${p}</p>`).join('');
+      } else if (file.type === 'application/vnd.openxmlformats-officedocument.wordprocessingml.document') {
+        content = await extractDOCX(file);
+      }
 
-      if (error) throw error;
+      // Generate summary from plain text
+      const plainText = content.replace(/<[^>]*>/g, ' ').replace(/\s+/g, ' ').trim();
+      const summary = plainText.slice(0, 300) + (plainText.length > 300 ? '...' : '');
 
       onDocumentLoaded({
-        content: data.content,
+        content,
         fileName: file.name,
-        summary: data.summary,
+        summary,
       });
 
       toast({
@@ -79,7 +114,7 @@ const DocumentUpload = ({ onDocumentLoaded }: DocumentUploadProps) => {
             Upload Your Document
           </h2>
           <p className="text-muted-foreground">
-            Support for PDF, DOCX, and TXT files
+            Full support for PDF, DOCX, and TXT files
           </p>
         </div>
 
@@ -103,7 +138,7 @@ const DocumentUpload = ({ onDocumentLoaded }: DocumentUploadProps) => {
                 {isLoading ? (
                   <>
                     <Loader2 className="mr-2 h-5 w-5 animate-spin" />
-                    Processing...
+                    Extracting content...
                   </>
                 ) : (
                   <>
@@ -117,7 +152,7 @@ const DocumentUpload = ({ onDocumentLoaded }: DocumentUploadProps) => {
         </div>
 
         <p className="text-xs text-muted-foreground">
-          Maximum file size: 10MB
+          Maximum file size: 10MB • Full text extraction included
         </p>
       </div>
     </Card>

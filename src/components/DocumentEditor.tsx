@@ -1,60 +1,81 @@
-import { useState, useRef, useEffect } from "react";
+import { useState, useEffect } from "react";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Download, FileText } from "lucide-react";
+import { Download, FileText, FileDown } from "lucide-react";
 import type { DocumentData } from "@/pages/Index";
+import RichTextEditor from "./RichTextEditor";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 
 interface DocumentEditorProps {
   document: DocumentData;
-  onTextSelected: (selection: { text: string; range: { start: number; end: number } } | null) => void;
+  onTextSelected: (selection: { text: string; html?: string } | null) => void;
   onDocumentUpdate: (doc: DocumentData) => void;
 }
 
 const DocumentEditor = ({ document, onTextSelected, onDocumentUpdate }: DocumentEditorProps) => {
   const [content, setContent] = useState(document.content);
-  const editorRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     setContent(document.content);
   }, [document.content]);
 
-  const handleTextSelection = () => {
-    const selection = window.getSelection();
-    if (!selection || selection.isCollapsed) {
-      onTextSelected(null);
-      return;
-    }
-
-    const selectedText = selection.toString();
-    if (!selectedText.trim()) {
-      onTextSelected(null);
-      return;
-    }
-
-    const range = selection.getRangeAt(0);
-    const preSelectionRange = range.cloneRange();
-    preSelectionRange.selectNodeContents(editorRef.current!);
-    preSelectionRange.setEnd(range.startContainer, range.startOffset);
-    const start = preSelectionRange.toString().length;
-
-    onTextSelected({
-      text: selectedText,
-      range: { start, end: start + selectedText.length },
-    });
-  };
-
-  const handleContentChange = (e: React.FormEvent<HTMLDivElement>) => {
-    const newContent = e.currentTarget.textContent || "";
+  const handleContentChange = (newContent: string) => {
     setContent(newContent);
     onDocumentUpdate({ ...document, content: newContent });
   };
 
-  const handleDownload = () => {
-    const blob = new Blob([content], { type: 'text/plain' });
+  const handleTextSelected = (selection: { text: string; html: string } | null) => {
+    if (selection) {
+      onTextSelected({
+        text: selection.text,
+        html: selection.html,
+      });
+    } else {
+      onTextSelected(null);
+    }
+  };
+
+  const exportAsText = () => {
+    const plainText = content.replace(/<[^>]*>/g, '\n').replace(/\n+/g, '\n').trim();
+    const blob = new Blob([plainText], { type: 'text/plain' });
+    downloadFile(blob, `${document.fileName}.txt`);
+  };
+
+  const exportAsHTML = () => {
+    const htmlContent = `
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <title>${document.fileName}</title>
+  <style>
+    body { 
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+      max-width: 800px;
+      margin: 0 auto;
+      padding: 2rem;
+      line-height: 1.6;
+    }
+  </style>
+</head>
+<body>
+  ${content}
+</body>
+</html>`;
+    const blob = new Blob([htmlContent], { type: 'text/html' });
+    downloadFile(blob, `${document.fileName}.html`);
+  };
+
+  const downloadFile = (blob: Blob, filename: string) => {
     const url = URL.createObjectURL(blob);
     const link = window.document.createElement('a');
     link.href = url;
-    link.download = `edited-${document.fileName}.txt`;
+    link.download = filename;
     window.document.body.appendChild(link);
     link.click();
     window.document.body.removeChild(link);
@@ -68,25 +89,32 @@ const DocumentEditor = ({ document, onTextSelected, onDocumentUpdate }: Document
           <FileText className="w-5 h-5 text-primary" />
           <h2 className="font-semibold text-foreground">{document.fileName}</h2>
         </div>
-        <Button variant="outline" size="sm" onClick={handleDownload}>
-          <Download className="w-4 h-4 mr-2" />
-          Export
-        </Button>
+        <DropdownMenu>
+          <DropdownMenuTrigger asChild>
+            <Button variant="outline" size="sm">
+              <FileDown className="w-4 h-4 mr-2" />
+              Export
+            </Button>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent align="end">
+            <DropdownMenuItem onClick={exportAsText}>
+              Export as TXT
+            </DropdownMenuItem>
+            <DropdownMenuItem onClick={exportAsHTML}>
+              Export as HTML
+            </DropdownMenuItem>
+          </DropdownMenuContent>
+        </DropdownMenu>
       </div>
 
-      <div
-        ref={editorRef}
-        contentEditable
-        onMouseUp={handleTextSelection}
-        onInput={handleContentChange}
-        className="min-h-[600px] p-6 bg-editor-bg rounded-lg border border-border focus:outline-none focus:ring-2 focus:ring-primary/20 text-foreground leading-relaxed"
-        suppressContentEditableWarning
-      >
-        {content}
-      </div>
+      <RichTextEditor
+        content={content}
+        onContentChange={handleContentChange}
+        onTextSelected={handleTextSelected}
+      />
 
       <p className="text-xs text-muted-foreground">
-        Highlight any text to refine it with AI research
+        Highlight any text to refine it with AI research • Use the toolbar for formatting
       </p>
     </Card>
   );

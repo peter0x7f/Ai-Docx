@@ -110,4 +110,53 @@ All colors MUST be HSL.
   body {
     @apply bg-background text-foreground;
   }
+  
+  .ProseMirror {
+    @apply outline-none text-foreground;
+  }
+  
+  .ProseMirror p {
+    @apply my-3;
+  }
+  
+  .ProseMirror h1 {
+    @apply text-3xl font-bold my-4;
+  }
+  
+  .ProseMirror h2 {
+    @apply text-2xl font-semibold my-3;
+  }
+  
+  .ProseMirror h3 {
+    @apply text-xl font-semibold my-2;
+  }
+  
+  .ProseMirror ul,
+  .ProseMirror ol {
+    @apply pl-6 my-3;
+  }
+  
+  .ProseMirror li {
+    @apply my-1;
+  }
+  
+  .ProseMirror blockquote {
+    @apply border-l-4 border-primary pl-4 italic my-4;
+  }
+  
+  .ProseMirror code {
+    @apply bg-muted px-1.5 py-0.5 rounded text-sm font-mono;
+  }
+  
+  .ProseMirror strong {
+    @apply font-bold;
+  }
+  
+  .ProseMirror em {
+    @apply italic;
+  }
+  
+  .ProseMirror mark {
+    @apply bg-highlight;
+  }
 }
