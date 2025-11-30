@@ -1,4 +1,4 @@
-import { useEffect } from "react";
+import { useEffect, useImperativeHandle, forwardRef } from "react";
 import { useEditor, EditorContent } from "@tiptap/react";
 import StarterKit from "@tiptap/starter-kit";
 import Underline from "@tiptap/extension-underline";
@@ -11,10 +11,16 @@ import { EditorToolbar } from "./EditorToolbar";
 interface RichTextEditorProps {
   content: string;
   onContentChange: (content: string) => void;
-  onTextSelected: (selection: { text: string; html: string } | null) => void;
+  onTextSelected: (selection: { text: string; html: string; from: number; to: number } | null) => void;
+  onReplaceText?: (from: number, to: number, newText: string) => void;
 }
 
-const RichTextEditor = ({ content, onContentChange, onTextSelected }: RichTextEditorProps) => {
+export interface RichTextEditorRef {
+  replaceSelection: (from: number, to: number, newText: string) => void;
+}
+
+const RichTextEditor = forwardRef<RichTextEditorRef, RichTextEditorProps>(
+  ({ content, onContentChange, onTextSelected, onReplaceText }, ref) => {
   const editor = useEditor({
     extensions: [
       StarterKit.configure({
@@ -49,18 +55,29 @@ const RichTextEditor = ({ content, onContentChange, onTextSelected }: RichTextEd
       }
 
       const selectedText = editor.state.doc.textBetween(from, to, ' ');
-      const selectedHTML = editor.state.doc.cut(from, to).content.toJSON();
       
       if (selectedText.trim()) {
         onTextSelected({
           text: selectedText,
           html: editor.getHTML().slice(from, to),
+          from,
+          to,
         });
       } else {
         onTextSelected(null);
       }
     },
   });
+
+  useImperativeHandle(ref, () => ({
+    replaceSelection: (from: number, to: number, newText: string) => {
+      if (editor) {
+        editor.commands.setTextSelection({ from, to });
+        editor.commands.insertContent(newText);
+        onReplaceText?.(from, to, newText);
+      }
+    },
+  }));
 
   useEffect(() => {
     if (editor && content !== editor.getHTML()) {
@@ -80,6 +97,8 @@ const RichTextEditor = ({ content, onContentChange, onTextSelected }: RichTextEd
       </div>
     </div>
   );
-};
+});
+
+RichTextEditor.displayName = 'RichTextEditor';
 
 export default RichTextEditor;

@@ -6,6 +6,48 @@ const corsHeaders = {
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 };
 
+// Load agent configuration from YAML
+async function loadAgentConfig() {
+  try {
+    const response = await fetch('https://raw.githubusercontent.com/yourusername/yourrepo/main/public/agent-config.yaml');
+    // For now, return hardcoded config since we can't dynamically load from repo
+    // In production, you'd want to store this in Supabase or use environment variables
+    return {
+      research_agent: {
+        system_prompt: `You are a research assistant specialized in academic and professional writing.
+Provide factual, relevant, and up-to-date information from authoritative sources.
+Focus on recent developments, studies, and credible references.
+Be thorough but concise in your research findings.`,
+        instructions: [
+          'Search for recent information related to the selected text',
+          'Prioritize academic sources, scientific papers, and credible publications',
+          'Include statistics, facts, and expert opinions when relevant',
+          'Note any contradictions or debates in the field',
+          'Keep research focused and relevant to the context'
+        ]
+      },
+      refinement_agent: {
+        system_prompt: `You are an expert editor and writing assistant.
+Your role is to enhance text by incorporating research findings while maintaining the author's voice and intent.
+Focus on clarity, accuracy, and professional quality.`,
+        instructions: [
+          'Incorporate research findings naturally into the text',
+          'Maintain the original structure and flow where appropriate',
+          'Improve clarity and readability',
+          'Add depth and supporting details from research',
+          "Preserve the author's tone and style",
+          'Return ONLY the refined text without explanations or preambles',
+          'Keep the refined text similar in length to the original unless expansion is explicitly requested',
+          'Ensure factual accuracy based on research findings'
+        ]
+      }
+    };
+  } catch (error) {
+    console.error('Error loading agent config:', error);
+    throw error;
+  }
+}
+
 serve(async (req) => {
   if (req.method === 'OPTIONS') {
     return new Response(null, { headers: corsHeaders });
@@ -22,6 +64,9 @@ serve(async (req) => {
     console.log('Refining text with prompt:', prompt);
     console.log('Selected text length:', selectedText.length);
 
+    // Load agent configuration
+    const config = await loadAgentConfig();
+
     // First, do web research on the topic
     const researchPrompt = `Based on this text: "${selectedText}", research and provide recent, relevant information that could enhance it. Context from document: ${documentSummary}`;
 
@@ -36,7 +81,7 @@ serve(async (req) => {
         messages: [
           {
             role: 'system',
-            content: 'You are a research assistant. Provide factual, relevant information that can be used to enhance academic or professional writing. Focus on recent developments and authoritative sources.',
+            content: config.research_agent.system_prompt,
           },
           {
             role: 'user',
@@ -67,7 +112,7 @@ User instructions: ${prompt}
 
 Document context: ${documentSummary}
 
-Task: Refine the original text according to the user's instructions, incorporating relevant research findings. Maintain the original intent while improving clarity, accuracy, and depth. Return ONLY the refined text without any preamble or explanation.`;
+Task: Refine the original text according to the user's instructions, incorporating relevant research findings. ${config.refinement_agent.instructions.join(' ')}`;
 
     const refinementResponse = await fetch('https://ai.gateway.lovable.dev/v1/chat/completions', {
       method: 'POST',
@@ -80,7 +125,7 @@ Task: Refine the original text according to the user's instructions, incorporati
         messages: [
           {
             role: 'system',
-            content: 'You are an expert editor and writer. Refine text according to instructions while incorporating research findings. Always maintain the original meaning and context.',
+            content: config.refinement_agent.system_prompt,
           },
           {
             role: 'user',

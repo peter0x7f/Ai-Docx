@@ -16,6 +16,14 @@ interface DocumentUploadProps {
 const DocumentUpload = ({ onDocumentLoaded }: DocumentUploadProps) => {
   const [isLoading, setIsLoading] = useState(false);
   const { toast } = useToast();
+  const fileInputRef = useState<HTMLInputElement | null>(null)[0];
+
+  const handleStartFresh = () => {
+    onDocumentLoaded({
+      content: '<p>Start writing your document here...</p>',
+      fileName: 'Untitled Document',
+    });
+  };
 
   const extractPDF = async (file: File): Promise<string> => {
     const arrayBuffer = await file.arrayBuffer();
@@ -103,56 +111,56 @@ const DocumentUpload = ({ onDocumentLoaded }: DocumentUploadProps) => {
   };
 
   return (
-    <Card className="p-12">
-      <div className="text-center space-y-6">
-        <div className="mx-auto w-24 h-24 rounded-full bg-primary/10 flex items-center justify-center">
-          <FileText className="w-12 h-12 text-primary" />
-        </div>
-        
-        <div>
-          <h2 className="text-2xl font-semibold text-foreground mb-2">
-            Upload Your Document
-          </h2>
+    <Card className="p-8">
+      <div className="space-y-6">
+        <div className="text-center space-y-2">
+          <Upload className="w-12 h-12 mx-auto text-primary" />
+          <h2 className="text-2xl font-bold text-foreground">Get Started</h2>
           <p className="text-muted-foreground">
-            Full support for PDF, DOCX, and TXT files
+            Create a new document or upload an existing file
           </p>
         </div>
 
-        <div>
-          <input
-            type="file"
-            id="file-upload"
-            className="hidden"
-            accept=".pdf,.docx,.doc,.txt"
-            onChange={handleFileUpload}
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <Button
+            onClick={handleStartFresh}
+            className="h-32 flex-col gap-3 text-lg"
+            variant="outline"
+          >
+            <FileText className="w-8 h-8" />
+            Start Fresh
+          </Button>
+          <Button
+            onClick={() => document.getElementById('file-upload')?.click()}
+            className="h-32 flex-col gap-3 text-lg"
+            variant="outline"
             disabled={isLoading}
-          />
-          <label htmlFor="file-upload">
-            <Button
-              asChild
-              size="lg"
-              disabled={isLoading}
-              className="cursor-pointer"
-            >
-              <span>
-                {isLoading ? (
-                  <>
-                    <Loader2 className="mr-2 h-5 w-5 animate-spin" />
-                    Extracting content...
-                  </>
-                ) : (
-                  <>
-                    <Upload className="mr-2 h-5 w-5" />
-                    Choose File
-                  </>
-                )}
-              </span>
-            </Button>
-          </label>
+          >
+            {isLoading ? (
+              <>
+                <Loader2 className="w-8 h-8 animate-spin" />
+                Extracting...
+              </>
+            ) : (
+              <>
+                <Upload className="w-8 h-8" />
+                Upload File
+              </>
+            )}
+          </Button>
         </div>
 
-        <p className="text-xs text-muted-foreground">
-          Maximum file size: 10MB • Full text extraction included
+        <input
+          type="file"
+          id="file-upload"
+          className="hidden"
+          accept=".pdf,.docx,.doc,.txt"
+          onChange={handleFileUpload}
+          disabled={isLoading}
+        />
+
+        <p className="text-xs text-center text-muted-foreground">
+          Supported formats: PDF, DOCX, TXT (Max 10MB)
         </p>
       </div>
     </Card>
