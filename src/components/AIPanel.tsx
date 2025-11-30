@@ -2,26 +2,24 @@ import { useState } from "react";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
-import { Loader2, Sparkles, Search, Copy, Check } from "lucide-react";
+import { Loader2, Sparkles, Search } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
 import type { DocumentData } from "@/pages/Index";
 
 interface AIPanelProps {
   document: DocumentData;
-  selectedText: { text: string; html?: string } | null;
-  onRefinementComplete: (refinedText: string) => void;
+  selectedText: { text: string; html?: string; from?: number; to?: number } | null;
+  onRefinementComplete: (refinedText: string, from: number, to: number) => void;
 }
 
 const AIPanel = ({ document, selectedText, onRefinementComplete }: AIPanelProps) => {
   const [prompt, setPrompt] = useState("");
   const [isProcessing, setIsProcessing] = useState(false);
-  const [refinedText, setRefinedText] = useState("");
-  const [copied, setCopied] = useState(false);
   const { toast } = useToast();
 
   const handleRefine = async () => {
-    if (!selectedText || !prompt.trim()) {
+    if (!selectedText || !prompt.trim() || selectedText.from === undefined || selectedText.to === undefined) {
       toast({
         title: "Missing information",
         description: "Please highlight text and provide a refinement prompt",
@@ -31,7 +29,6 @@ const AIPanel = ({ document, selectedText, onRefinementComplete }: AIPanelProps)
     }
 
     setIsProcessing(true);
-    setRefinedText("");
 
     try {
       const { data, error } = await supabase.functions.invoke('refine-text', {
@@ -45,11 +42,16 @@ const AIPanel = ({ document, selectedText, onRefinementComplete }: AIPanelProps)
 
       if (error) throw error;
 
-      setRefinedText(data.refinedText);
+      // Directly replace text in the editor
+      onRefinementComplete(data.refinedText, selectedText.from, selectedText.to);
+      
       toast({
         title: "Refinement complete",
         description: "AI has refined your text with research",
       });
+      
+      // Clear the prompt after successful refinement
+      setPrompt("");
     } catch (error) {
       console.error('Error refining text:', error);
       toast({
@@ -60,13 +62,6 @@ const AIPanel = ({ document, selectedText, onRefinementComplete }: AIPanelProps)
     } finally {
       setIsProcessing(false);
     }
-  };
-
-  const handleCopy = () => {
-    navigator.clipboard.writeText(refinedText);
-    setCopied(true);
-    toast({ title: "Copied to clipboard" });
-    setTimeout(() => setCopied(false), 2000);
   };
 
   return (
@@ -119,37 +114,9 @@ const AIPanel = ({ document, selectedText, onRefinementComplete }: AIPanelProps)
             )}
           </Button>
 
-          {refinedText && (
-            <div className="space-y-3 pt-2 border-t border-border">
-              <label className="text-sm font-medium text-foreground flex items-center justify-between">
-                <span>Refined Result</span>
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  onClick={handleCopy}
-                  className="h-8"
-                >
-                  {copied ? (
-                    <>
-                      <Check className="w-3 h-3 mr-1" />
-                      Copied
-                    </>
-                  ) : (
-                    <>
-                      <Copy className="w-3 h-3 mr-1" />
-                      Copy
-                    </>
-                  )}
-                </Button>
-              </label>
-              <div className="p-4 bg-card border border-border rounded-lg text-sm text-foreground max-h-[350px] overflow-y-auto leading-relaxed">
-                {refinedText}
-              </div>
-              <p className="text-xs text-muted-foreground">
-                💡 Copy the refined text and paste it back into your document
-              </p>
-            </div>
-          )}
+          <p className="text-xs text-muted-foreground text-center">
+            💡 AI will research and replace your selected text directly in the document
+          </p>
         </div>
       ) : (
         <div className="text-center py-12 space-y-3">

@@ -1,7 +1,8 @@
-import { useState } from "react";
+import { useState, useRef } from "react";
 import DocumentUpload from "@/components/DocumentUpload";
 import DocumentEditor from "@/components/DocumentEditor";
 import AIPanel from "@/components/AIPanel";
+import type { RichTextEditorRef } from "@/components/RichTextEditor";
 
 export interface DocumentData {
   content: string;
@@ -14,7 +15,22 @@ const Index = () => {
   const [selectedText, setSelectedText] = useState<{
     text: string;
     html?: string;
+    from?: number;
+    to?: number;
   } | null>(null);
+  const editorRef = useRef<{ getEditorRef: () => RichTextEditorRef | null }>(null);
+
+  const handleRefinementComplete = (refinedText: string, from: number, to: number) => {
+    const editor = editorRef.current?.getEditorRef();
+    if (editor) {
+      editor.replaceSelection(from, to, refinedText);
+      setSelectedText(null); // Clear selection after replacement
+    }
+  };
+
+  const handleReplaceText = (from: number, to: number, newText: string) => {
+    console.log(`Replaced text from ${from} to ${to}`);
+  };
 
   return (
     <div className="min-h-screen bg-background">
@@ -34,19 +50,18 @@ const Index = () => {
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
             <div className="lg:col-span-2">
               <DocumentEditor
+                ref={editorRef}
                 document={document}
                 onTextSelected={setSelectedText}
                 onDocumentUpdate={setDocument}
+                onReplaceText={handleReplaceText}
               />
             </div>
             <div className="lg:col-span-1">
               <AIPanel
                 document={document}
                 selectedText={selectedText}
-                onRefinementComplete={(refinedText) => {
-                  // Handle the refined text insertion
-                  console.log("Refined text:", refinedText);
-                }}
+                onRefinementComplete={handleRefinementComplete}
               />
             </div>
           </div>
