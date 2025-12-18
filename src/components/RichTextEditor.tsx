@@ -8,16 +8,26 @@ import { Color } from "@tiptap/extension-color";
 import Highlight from "@tiptap/extension-highlight";
 import { EditorToolbar } from "./EditorToolbar";
 
+interface SelectionData {
+  text: string;
+  html: string;
+  from: number;
+  to: number;
+  position: { top: number; left: number };
+}
+
 interface RichTextEditorProps {
   content: string;
   onContentChange: (content: string) => void;
-  onTextSelected: (selection: { text: string; html: string; from: number; to: number } | null) => void;
+  onTextSelected: (selection: SelectionData | null) => void;
   onReplaceText?: (from: number, to: number, newText: string) => void;
 }
 
 export interface RichTextEditorRef {
   replaceSelection: (from: number, to: number, newText: string) => void;
 }
+
+export type { SelectionData };
 
 const RichTextEditor = forwardRef<RichTextEditorRef, RichTextEditorProps>(
   ({ content, onContentChange, onTextSelected, onReplaceText }, ref) => {
@@ -57,11 +67,25 @@ const RichTextEditor = forwardRef<RichTextEditorRef, RichTextEditorProps>(
       const selectedText = editor.state.doc.textBetween(from, to, ' ');
       
       if (selectedText.trim()) {
+        // Get the DOM selection to calculate position
+        const domSelection = window.getSelection();
+        let position = { top: 0, left: 0 };
+        
+        if (domSelection && domSelection.rangeCount > 0) {
+          const range = domSelection.getRangeAt(0);
+          const rect = range.getBoundingClientRect();
+          position = {
+            top: rect.bottom + window.scrollY,
+            left: rect.left + (rect.width / 2),
+          };
+        }
+
         onTextSelected({
           text: selectedText,
           html: editor.getHTML().slice(from, to),
           from,
           to,
+          position,
         });
       } else {
         onTextSelected(null);

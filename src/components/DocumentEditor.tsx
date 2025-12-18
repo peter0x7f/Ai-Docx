@@ -15,9 +15,11 @@ export interface DocumentEditorRef {
   getEditorRef: () => RichTextEditorRef | null;
 }
 
+import type { SelectionData } from "./RichTextEditor";
+
 interface DocumentEditorProps {
   document: DocumentData;
-  onTextSelected: (selection: { text: string; html: string; from: number; to: number } | null) => void;
+  onTextSelected: (selection: SelectionData | null) => void;
   onDocumentUpdate: (doc: DocumentData) => void;
   onReplaceText: (from: number, to: number, newText: string) => void;
 }
@@ -40,7 +42,7 @@ const DocumentEditor = forwardRef<DocumentEditorRef, DocumentEditorProps>(
       onDocumentUpdate({ ...document, content: newContent });
     };
 
-    const handleTextSelected = (selection: { text: string; html: string; from: number; to: number } | null) => {
+    const handleTextSelected = (selection: SelectionData | null) => {
       onTextSelected(selection);
     };
 
