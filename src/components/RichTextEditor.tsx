@@ -57,7 +57,13 @@ const RichTextEditor = forwardRef<RichTextEditorRef, RichTextEditorProps>(
     onUpdate: ({ editor }) => {
       onContentChange(editor.getHTML());
     },
-    onSelectionUpdate: ({ editor }) => {
+  });
+
+  // Handle selection on mouseup to avoid interrupting the highlight action
+  useEffect(() => {
+    const handleMouseUp = () => {
+      if (!editor) return;
+      
       const { from, to } = editor.state.selection;
       if (from === to) {
         onTextSelected(null);
@@ -67,7 +73,6 @@ const RichTextEditor = forwardRef<RichTextEditorRef, RichTextEditorProps>(
       const selectedText = editor.state.doc.textBetween(from, to, ' ');
       
       if (selectedText.trim()) {
-        // Get the DOM selection to calculate position
         const domSelection = window.getSelection();
         let position = { top: 0, left: 0 };
         
@@ -90,8 +95,11 @@ const RichTextEditor = forwardRef<RichTextEditorRef, RichTextEditorProps>(
       } else {
         onTextSelected(null);
       }
-    },
-  });
+    };
+
+    document.addEventListener('mouseup', handleMouseUp);
+    return () => document.removeEventListener('mouseup', handleMouseUp);
+  }, [editor, onTextSelected]);
 
   useImperativeHandle(ref, () => ({
     replaceSelection: (from: number, to: number, newText: string) => {

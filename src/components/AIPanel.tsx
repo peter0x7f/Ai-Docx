@@ -101,7 +101,6 @@ const AIPanel = ({ document, selectedText, onRefinementComplete, onClose }: AIPa
         placeholder="How should AI refine this?"
         className="min-h-[80px] text-sm"
         disabled={isProcessing}
-        autoFocus
       />
 
       <Button
